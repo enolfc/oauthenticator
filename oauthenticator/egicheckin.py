@@ -9,6 +9,7 @@ import json
 import os
 import base64
 import urllib
+import pprint
 
 from tornado.auth import OAuth2Mixin
 from tornado import gen, web
@@ -42,7 +43,8 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
     client_secret_env = 'EGICHECKIN_CLIENT_SECRET'
     login_handler = EGICheckinLoginHandler
 
-    scope = List(Unicode(), default_value=['openid', 'email', 'refeds_edu'],
+    scope = List(Unicode(), default_value=['openid', 'email', 'refeds_edu',
+                                           'offline_access'],
                  config=True,
                  help="""The OAuth scopes to request.
 
@@ -91,6 +93,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
                         'User does not have any of the white listed claims')
                 raise web.HTTPError(
                         401, 'Trying to login without the authorized claims')
+        self.log.debug('USER DATA: %s', pprint.pformat(user_data))
         return user_data
 
 
