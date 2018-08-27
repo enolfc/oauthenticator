@@ -18,6 +18,7 @@ from tornado.httputil import url_concat
 from tornado.httpclient import HTTPRequest, AsyncHTTPClient
 
 from jupyterhub.auth import LocalAuthenticator
+from jupyterhub.handlers import BaseHandler
 
 from traitlets import Unicode, List, Bool, validate
 
@@ -36,12 +37,55 @@ class EGICheckinLoginHandler(OAuthLoginHandler, EGICheckinMixin):
     pass
 
 
+class EGICheckinRefreshHandler(BaseHandler):
+    @web.authenticated
+    @gen.coroutine
+    def get(self):
+        user = self.get_current_user()
+        auth_state = yield user.get_auth_state()
+        if not auth_state or 'refresh_token' not in auth_state:
+            # auth_state not enabled
+            raise web.HTTPError(500, 'No auth state available')
+
+        # performing the refresh token call
+        http_client = AsyncHTTPClient()
+        headers = {
+            "Accept": "application/json",
+            "User-Agent": "JupyterHub",
+        }
+        params = dict(
+            client_id=self.authenticator.client_id,
+            client_secret=self.authenticator.client_secret,
+            grant_type='refresh_token',
+            refresh_token=auth_state['refresh_token'],
+            scope=' '.join(self.authenticator.scope),
+        )
+        url = url_concat(self.authenticator.token_url, params)
+        req = HTTPRequest(url,
+                          auth_username=self.authenticator.client_id,
+                          auth_password=self.authenticator.client_secret,
+                          headers=headers,
+                          method='POST',
+                          body=''
+                          )
+        resp = yield http_client.fetch(req)
+        refresh_response = json.loads(resp.body.decode('utf8', 'replace'))
+        self.log.debug("Got response with new access token")
+        result = {'access_token': refresh_response['access_token']}
+        self.write(json.dumps(result))
+        # Missing here:
+        # 1. Update the access token in the auto_state
+        # 2. Store the expiry date of access token
+        # 3. Do not try to get an access token every time, as they last for ~1 hour
+
+
 class EGICheckinAuthenticator(GenericOAuthenticator):
     login_service = "EGI Check-in"
 
     client_id_env = 'EGICHECKIN_CLIENT_ID'
     client_secret_env = 'EGICHECKIN_CLIENT_SECRET'
     login_handler = EGICheckinLoginHandler
+    refresh_handler = EGICheckinRefreshHandler
 
     scope = List(Unicode(), default_value=['openid', 'email', 'refeds_edu',
                                            'offline_access'],
@@ -93,8 +137,12 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
                         'User does not have any of the white listed claims')
                 raise web.HTTPError(
                         401, 'Trying to login without the authorized claims')
-        self.log.debug('USER DATA: %s', pprint.pformat(user_data))
         return user_data
+
+    def get_handlers(self, app):
+        base = super(EGICheckinAuthenticator, self).get_handlers(app)
+        base.append((r'/refresh', self.refresh_handler))
+        return base
 
 
 class LocalEGICheckinAuthenticator(LocalAuthenticator, EGICheckinAuthenticator):
