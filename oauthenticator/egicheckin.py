@@ -141,7 +141,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
 
     def get_handlers(self, app):
         base = super(EGICheckinAuthenticator, self).get_handlers(app)
-        base.append((r'/refresh', self.refresh_handler))
+        base.append((r'/api/refresh', self.refresh_handler))
         return base
 
 
