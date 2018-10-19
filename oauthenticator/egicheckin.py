@@ -104,16 +104,28 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             return ['openid'] + proposal.value
         return proposal.value
 
-    claims_key = Unicode(
+    entitlements_key = Unicode(
         'edu_person_entitlements',
         config=True,
         help="Claim name used to whitelist users",
     )
 
-    claims_whitelist = List(
+    entitlements_whitelist = List(
         config=True,
         help="""A list of user claims that are authorized to login.""",
     )
+
+    affiliations_key = Unicode(
+        'edu_person_scoped_affiliations',
+        config=True,
+        help="Claim name used to whitelist affiliations",
+     )
+
+    affiliations_whitelist = List(
+        config=True,
+        help="""A list of user affiliations that are authorized to login.""",
+    )
+
 
     # User name in Check-in comes in sub
     # From Check-in docs: An identifier for the user, unique among all
@@ -129,10 +141,19 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
     def authenticate(self, handler, data=None):
         user_data = yield super(EGICheckinAuthenticator,
                                 self).authenticate(handler, data)
-        if self.claims_whitelist:
-            oauth_user = user_data['auth_state']['oauth_user']
-            gotten_claims = oauth_user.get(self.claims_key, '')
-            if not any(x in gotten_claims for x in self.claims_whitelist):
+
+        self.log.info('USER DATA: %s', user_data)
+        oauth_user = user_data['auth_state']['oauth_user']
+        if self.affiliations_whitelist:
+            gotten_claims = oauth_user.get(self.affiliations_key, '')
+            if any(x in gotten_claims for x in self.affiliations_whitelist):
+                # no need to further check!
+                self.log.info('USER allowed as member of %s', self.affiliations_whitelist)
+                return user_data
+
+        if self.entitlements_whitelist:
+            gotten_claims = oauth_user.get(self.entitlements_key, '')
+            if not any(x in gotten_claims for x in self.entitlements_whitelist):
                 self.log.debug(
                         'User does not have any of the white listed claims')
                 raise web.HTTPError(
