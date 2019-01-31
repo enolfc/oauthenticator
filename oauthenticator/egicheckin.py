@@ -142,7 +142,8 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         user_data = yield super(EGICheckinAuthenticator,
                                 self).authenticate(handler, data)
 
-        self.log.info('USER DATA: %s', user_data)
+        #self.log.info('USER DATA: %s', user_data)
+        # probably we shouldn't store everything here
         oauth_user = user_data['auth_state']['oauth_user']
         if self.affiliations_whitelist:
             gotten_claims = oauth_user.get(self.affiliations_key, '')
@@ -154,9 +155,9 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         if self.entitlements_whitelist:
             gotten_claims = oauth_user.get(self.entitlements_key, '')
             if not any(x in gotten_claims for x in self.entitlements_whitelist):
-                self.log.debug(
-                        'User does not have any of the white listed claims')
-                raise web.HTTPError(
+                self.log.debug('User does not belong to white listed claims')
+                if not self.whitelist:
+                    raise web.HTTPError(
                         401, 'Trying to login without the authorized claims')
         return user_data
 
