@@ -159,6 +159,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
                 if not self.whitelist:
                     raise web.HTTPError(
                         401, 'Trying to login without the authorized claims')
+        user_data['name'] = user_data['name'].split('@')[0]
         return user_data
 
     def get_handlers(self, app):
