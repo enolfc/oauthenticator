@@ -127,11 +127,17 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
     )
 
 
-    # User name in Check-in comes in sub
-    # From Check-in docs: An identifier for the user, unique among all
-    # EGI accounts and never reused. Use sub within your application as the
-    # unique-identifier key for the user.
-    username_key = 'sub'
+    # User name in Check-in comes in sub, but we are defaulting to
+    # preferred_username as sub is too long to be used as id for
+    # volumes
+    username_key = Unicode(
+        'preferred_username',
+        config=True,
+        help="""
+        Claim name to use for getting the user name. 'sub' is unique but it's
+        too long.
+        """
+    )
 
     # getting these from .well-known?
     token_url = 'https://%s/oidc/token' % EGICHECKIN_HOST
