@@ -87,8 +87,8 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
     login_handler = EGICheckinLoginHandler
     refresh_handler = EGICheckinRefreshHandler
 
-    scope = List(Unicode(), default_value=['openid', 'email', 'refeds_edu',
-                                           'offline_access'],
+    scope = List(Unicode(), default_value=['openid', 'profile', 'eduperson_scoped_affiliation',
+                                           'eduperson_entitlement', 'offline_access'],
                  config=True,
                  help="""The OAuth scopes to request.
 
